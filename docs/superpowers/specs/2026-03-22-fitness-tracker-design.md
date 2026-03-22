@@ -1,6 +1,6 @@
 # Fitness Tracker — Design Spec
 **Date:** 2026-03-22
-**Programme:** 33-day fat loss, March 23 → April 25, 2025
+**Programme:** 33-day fat loss, March 23 → April 25, 2026
 **Starting weight:** 81.70 kg | **Goal weight:** 70.00 kg | **Target loss:** 11.70 kg
 
 ---
@@ -8,6 +8,26 @@
 ## Overview
 
 A personal web-based fitness tracker for a 33-day fat loss programme. Cross-device (mobile + desktop), password-gated with hardcoded credentials, no user registration flow. Data persists in Supabase; frontend deployed on Vercel.
+
+---
+
+## Programme Constants
+
+| Constant | Value |
+|---|---|
+| `PROGRAMME_START` | 2026-03-23 (Monday = Day 1) |
+| `PROGRAMME_END` | 2026-04-25 (Day 33) |
+| `START_WEIGHT_KG` | 81.70 |
+| `GOAL_WEIGHT_KG` | 70.00 |
+| `TARGET_LOSS_KG` | 11.70 |
+| `TOTAL_DAYS` | 33 |
+| `TARGET_DAILY_LOSS_KG` | `11.70 / 33` (use the division expression in code; do not round to 0.355) |
+
+Day number is computed as: `dayNumber = differenceInDays(today, PROGRAMME_START) + 1`, clamped to 1–33.
+
+**App state outside the programme window:**
+- **Before Day 1 (before 2026-03-23):** Show a full-screen "Programme starts on March 23, 2026" countdown screen. All 4 nav sections are inaccessible.
+- **After Day 33 (after 2026-04-25):** The app operates normally — all sections remain fully readable and the Daily Check-in remains usable. The day badge is frozen at "Day 33 of 33" and the progress bar at 100%. No new pace projections are shown.
 
 ---
 
@@ -28,9 +48,11 @@ A personal web-based fitness tracker for a 33-day fat loss programme. Cross-devi
 ## Authentication
 
 - Hardcoded username + password stored as Vercel environment variables (`VITE_APP_USER`, `VITE_APP_PASS`)
-- Simple client-side check on login screen
+- Simple client-side check on the login screen; credentials are bundled into the JS build (visible in browser devtools). This is an accepted trade-off for a personal, private deployment — no sensitive data beyond fitness logs is at risk.
+- On incorrect password: display the message "Incorrect username or password" below the form fields. Field values are preserved. No retry limit.
 - Successful login writes a flag to `localStorage`; the app reads it on load to skip the login gate
 - Both mobile and desktop visit the same Vercel URL and log in once per device
+- No explicit logout button — the session persists until the user clears localStorage manually. This is intentional for a personal, single-user app.
 
 ---
 
@@ -40,12 +62,12 @@ A personal web-based fitness tracker for a 33-day fat loss programme. Cross-devi
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | auto |
-| log_date | date UNIQUE | one row per day |
-| weight_kg | numeric | |
-| water_ml | integer | |
-| sleep_hours | numeric | |
-| energy | smallint | 1–5 |
-| hunger | smallint | 1–5 |
+| log_date | date UNIQUE | one row per day; upsert key |
+| weight_kg | numeric | nullable |
+| water_ml | integer | nullable |
+| sleep_hours | numeric | nullable |
+| energy | smallint | 1–5, nullable |
+| hunger | smallint | 1–5, nullable |
 | workout_status | text | done / partial / missed / rest |
 | workout_notes | text | nullable |
 | soreness_notes | text | nullable |
@@ -60,14 +82,18 @@ A personal web-based fitness tracker for a 33-day fat loss programme. Cross-devi
 | description | text | |
 | on_plan | boolean | |
 
+Save strategy: delete all existing rows for `log_date`, then insert fresh rows for each meal card with a non-empty description. No upsert key is needed — delete-then-insert is the sole strategy. Meals with empty descriptions are not inserted and do not count toward the compliance denominator.
+
 ### `measurements`
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid PK | auto |
-| measured_at | date UNIQUE | |
-| waist_cm | numeric | |
-| chest_cm | numeric | |
-| arm_cm | numeric | |
+| measured_at | date UNIQUE | upsert key; replaces all columns on conflict |
+| waist_cm | numeric NOT NULL | |
+| chest_cm | numeric NOT NULL | |
+| arm_cm | numeric NOT NULL | |
+
+All three measurement fields are required. The save button is disabled unless all three are filled. If a DB-level NOT NULL constraint violation occurs despite the client-side guard, show the same toast error ("Save failed — check your connection") — the constraint serves as defence-in-depth.
 
 No `session_id` needed — single-user app.
 
@@ -90,35 +116,36 @@ On mobile: sidebar collapses; hamburger button in header opens it as an overlay.
 **Header:** "Day X of 33" badge + horizontal progress bar
 
 **Stats grid (6 cards):**
-- Current Weight (kg)
-- Total Weight Lost (kg)
-- Meal Compliance % (on-plan meals / total logged meals)
-- Workout Completion % (done or partial / non-rest days elapsed)
-- Consecutive Clean Days Streak (days with all 4 meals on-plan)
-- Weekly Loss Rate (kg/week, rolling 7-day average)
+- Current Weight (kg) — most recent logged weight; display "—" if no weight logged yet
+- Total Weight Lost (kg) — START_WEIGHT_KG minus most recent weight; display "—" if no weight logged yet
+- Meal Compliance % — `onPlanMeals ÷ totalLoggedMeals × 100`; display "—" if no meals logged yet
+- Workout Completion % — see Progress Logic for exact formula; display "—" before any workout logs exist
+- Current Streak — most recent unbroken run of consecutive logged days where every logged meal is on-plan; display "0" if streak is broken or no logs exist
+- Weekly Loss Rate (kg/week) — weight loss over the 7 most recent calendar days ending today (earliest logged weight in that window subtracted from today's/most recent weight, expressed as kg/week); display "—" if fewer than 2 weight entries exist within the last 7 days
 
 **Pace banner:**
-- Green — On Track (actual cumulative loss within 0.5 kg of target)
-- Yellow — Slightly Behind (0.5–1.5 kg behind target)
-- Red — Behind Pace (>1.5 kg behind target)
+- Green — On Track (actual cumulative loss within 0.5 kg of expected)
+- Yellow — Slightly Behind (0.5–1.5 kg behind expected)
+- Red — Behind Pace (>1.5 kg behind expected)
 - Always shows: projected weight on April 25 at current rate
-- Target rate: 11.70 kg ÷ 33 days = 0.355 kg/day
 
-**Stall alert:** Amber warning card shown when weight is unchanged for 3+ consecutive logged days. Suggested corrective actions:
+**Stall alert:** Amber warning card shown when weight is unchanged across the 3 most recent log entries (gaps in logging are irrelevant — only log entry order matters, not calendar dates). "Unchanged" means the `weight_kg` value, rounded to 2 decimal places, is exactly equal across those entries. Suggested corrective actions:
 1. Reduce fruit intake (natural sugars may be stalling fat loss)
 2. Add an extra 20-min walk tomorrow
 3. Check sleep — aim for 7–8 hours
 
 **Weight trend chart (Recharts LineChart):**
 - X-axis: Day 1–33
-- Actual weight line (amber)
-- Dashed target reference line from 81.70 kg to 70.00 kg
+- Actual weight line (amber) — plotted only for logged days; if no data exists, show an empty chart with axes and the target line only
+- Dashed target reference line from 81.70 kg (Day 1) to 70.00 kg (Day 33)
 
-**Today's workout card:** Shows workout name, and for each exercise: name, sets × reps (or duration). Hidden on Rest days.
+**Today's workout card:** Shows workout name and exercise list (sets × reps or duration). The card is hidden when `workout_status = 'rest'`. Since the workout_status field defaults to Rest on Sundays (but the user may override it), this rule naturally handles Sundays — if the user overrides Sunday to Done/Partial/Missed, the card is shown.
 
 ---
 
 ## Workout Schedule
+
+Workout type is derived from the **calendar day-of-week** of the current date (not from the day number). Day 1 = March 23, 2026 = Monday = Strength, which is consistent with the schedule below.
 
 ### Strength (Mon / Wed / Fri)
 1. Dumbbell Bicep Curls — 3×12
@@ -138,7 +165,8 @@ On mobile: sidebar collapses; hamburger button in header opens it as an overlay.
    - Rest 30s
 
 ### Rest (Sun)
-No workout card shown. Check-in workout field auto-set to Rest.
+- No workout card shown on the Dashboard
+- On the Daily Check-in, the workout status buttons (Done / Partial / Missed / Rest) are shown and pre-selected to **Rest**, but the user may override this selection if desired
 
 ---
 
@@ -146,14 +174,16 @@ No workout card shown. Check-in workout field auto-set to Rest.
 
 **Weight log:**
 - Number input (kg, 2 decimal places)
-- Delta display below: "−X.XX kg from start"
+- Delta display below: "−X.XX kg from start" (computed vs START_WEIGHT_KG)
 
 **Meal log (4 cards):** Breakfast, Lunch, Snack, Dinner
 - Text area for description
-- Toggle button: On Plan (green) / Off Plan (red)
+- Toggle button: On Plan (green) / Off Plan (red); defaults to On Plan
+- A meal card is only saved to the DB if the description field is non-empty
 
 **Workout log:**
 - 4-button group: Done / Partial / Missed / Rest
+- On Sundays, **Rest** is pre-selected; user may change it
 - Text area for notes
 
 **Wellness log:**
@@ -163,7 +193,7 @@ No workout card shown. Check-in workout field auto-set to Rest.
 - Hunger — 1–5 star rating
 - Soreness / extra notes — text area
 
-**Save button:** Upserts `daily_logs` row and all 4 `meals` rows for today's date.
+**Save button:** Upserts `daily_logs` row for today's date. For meals: deletes all existing `meals` rows for today's date, then inserts fresh rows only for meal cards where the description is non-empty. This ensures cleared descriptions remove stale rows. On any Supabase write failure, show a toast error ("Save failed — check your connection") and keep the form data intact for retry. No silent failures.
 
 ---
 
@@ -171,14 +201,16 @@ No workout card shown. Check-in workout field auto-set to Rest.
 
 **Summary bar:**
 - Total days logged
-- Overall meal compliance %
-- Workouts completed
+- Overall meal compliance % (same formula as Dashboard; show "—" if zero)
+- Workouts completed (count of `workout_status = 'done'`)
 - Average daily water (ml)
 - Average sleep (hours)
-- Current streak
+- Current streak — same value as Dashboard stat card: most recent unbroken run of consecutive logged days where every logged meal is on-plan
 
 **Table 1 — Daily log:**
-Columns: Date · Day# · Weight · Meal Score (e.g. 3/4) · Workout · Water · Sleep · Energy
+Columns: Date · Day# · Weight · Meal Score (e.g. 3/4 = logged meals that are on-plan / total logged meals for that day) · Workout · Water · Sleep · Energy
+
+Day# computed from `PROGRAMME_START`.
 
 **Table 2 — Meal detail:**
 Columns: Date · Meal · Description · Status
@@ -192,27 +224,29 @@ Both tables sorted newest → oldest.
 
 **Entry form:**
 - Waist (cm), Chest (cm), Arm (cm)
-- Date (defaults to today)
-- Save button — upserts `measurements` row
+- Date (defaults to today; user may change)
+- Save button — upserts `measurements` row on `measured_at` conflict, replacing all three measurement columns. On failure, show a toast error ("Save failed — check your connection") and keep the form data intact.
 
 **History table:**
-Columns: Date · Waist · Chest · Arm · Δ Waist · Δ Chest · Δ Arm (delta from first recorded measurement)
+Columns: Date · Waist · Chest · Arm · Δ Waist · Δ Chest · Δ Arm (delta from first recorded measurement, shown as negative for loss)
 
 ---
 
 ## Progress Logic
 
-| Metric | Formula |
+| Metric | Formula / Rule |
 |---|---|
-| Target daily loss | 11.70 ÷ 33 = 0.355 kg/day |
-| Expected weight today | 81.70 − (0.355 × (dayNumber − 1)) |
-| On track | actual loss within 0.5 kg of expected |
-| Slightly behind | 0.5–1.5 kg behind expected |
-| Behind | >1.5 kg behind expected |
-| Projected April 25 weight | currentWeight − (avgDailyLoss × daysRemaining) |
-| Stall alert | weight unchanged for 3+ consecutive logged days |
-| Meal compliance % | onPlanMeals ÷ totalLoggedMeals × 100 |
-| Streak | consecutive days where all 4 meals are on-plan |
+| Day number | `differenceInDays(today, 2026-03-23) + 1`, clamped 1–33 |
+| Target daily loss | `11.70 / 33` kg/day (use exact division, not rounded constant) |
+| Expected weight today | `81.70 − ((11.70 / 33) × (dayNumber − 1))` |
+| On track | actual cumulative loss within 0.5 kg of expected cumulative loss |
+| Slightly behind | 0.5–1.5 kg behind expected cumulative loss |
+| Behind | >1.5 kg behind expected cumulative loss |
+| Projected April 25 weight | `currentWeight − (avgDailyLoss × daysRemaining)`; avgDailyLoss = (START_WEIGHT_KG − currentWeight) ÷ daysWithWeightLogged. If avgDailyLoss ≤ 0 (weight unchanged or rising), show the projection as-is — it will equal or exceed the current weight, which is informative feedback. |
+| Stall alert | weight_kg (rounded to 2dp) identical across the 3 most recent log entries (order by log_date); calendar gaps are irrelevant |
+| Meal compliance % | `sum(on_plan = true) ÷ count(all logged meals) × 100` across all days — meal-level aggregation, not average of per-day percentages; show "—" when denominator = 0 |
+| Current streak | Most recent unbroken run of logged days (days with a `daily_logs` row) where every saved meal row for that day has `on_plan = true`. A logged day with zero meal rows saved is skipped — it neither extends nor breaks the streak. Displayed identically in Dashboard and History summary bar. |
+| Workout completion % | `(done + partial) ÷ nonRestDaysElapsed × 100` where nonRestDaysElapsed = count of Mon–Sat calendar days from Day 1 up to and including today, capped at 30 (the exact Mon–Sat count across the 33-day programme: 5 full weeks × 6 days = 30) |
 
 ---
 
