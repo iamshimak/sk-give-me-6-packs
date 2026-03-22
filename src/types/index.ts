@@ -16,6 +16,7 @@ export interface Workout {
 }
 
 export interface DailyLog {
+  id?: string
   log_date: string          // ISO date string "YYYY-MM-DD"
   weight_kg: number | null
   water_ml: number | null
@@ -30,6 +31,7 @@ export interface DailyLog {
 export type MealType = 'breakfast' | 'lunch' | 'snack' | 'dinner'
 
 export interface Meal {
+  id?: string
   log_date: string
   meal_type: MealType
   description: string
@@ -37,6 +39,7 @@ export interface Meal {
 }
 
 export interface Measurement {
+  id?: string
   measured_at: string       // ISO date string "YYYY-MM-DD"
   waist_cm: number
   chest_cm: number
