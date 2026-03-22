@@ -23,11 +23,12 @@ A personal web-based fitness tracker for a 33-day fat loss programme. Cross-devi
 | `TOTAL_DAYS` | 33 |
 | `TARGET_DAILY_LOSS_KG` | `11.70 / 33` (use the division expression in code; do not round to 0.355) |
 
-Day number is computed as: `dayNumber = differenceInDays(today, PROGRAMME_START) + 1`, clamped to 1–33.
+Day number is computed as: `dayNumber = differenceInDays(today, PROGRAMME_START) + 1`, clamped to 1–33. This formula is only evaluated when the app is in the active programme state (see below).
 
 **App state outside the programme window:**
-- **Before Day 1 (before 2026-03-23):** Show a full-screen "Programme starts on March 23, 2026" countdown screen. All 4 nav sections are inaccessible.
-- **After Day 33 (after 2026-04-25):** The app operates normally — all sections remain fully readable and the Daily Check-in remains usable. The day badge is frozen at "Day 33 of 33" and the progress bar at 100%. No new pace projections are shown.
+- **Before Day 1 (today < 2026-03-23):** Show a full-screen "Programme starts on March 23, 2026" countdown screen. All 4 nav sections are inaccessible. No `dayNumber` is computed.
+- **Active (2026-03-23 ≤ today ≤ 2026-04-25):** Normal operation. `dayNumber` is computed and clamped to 1–33.
+- **After Day 33 (today > 2026-04-25):** The app operates normally — all sections remain fully readable and the Daily Check-in remains usable. `dayNumber` is fixed at 33; the day badge is frozen at "Day 33 of 33" and the progress bar at 100%. Pace banner is hidden (programme is over).
 
 ---
 
@@ -71,7 +72,7 @@ Day number is computed as: `dayNumber = differenceInDays(today, PROGRAMME_START)
 | workout_status | text | done / partial / missed / rest |
 | workout_notes | text | nullable |
 | soreness_notes | text | nullable |
-| created_at | timestamptz | |
+| created_at | timestamptz | DEFAULT now() |
 
 ### `meals`
 | Column | Type | Notes |
@@ -97,6 +98,8 @@ All three measurement fields are required. The save button is disabled unless al
 
 No `session_id` needed — single-user app.
 
+**Supabase access policy:** Row Level Security (RLS) is **disabled** on all three tables (`daily_logs`, `meals`, `measurements`). The Supabase anon key has unrestricted read/write access. This is intentional — the app uses its own client-side login gate rather than Supabase Auth. The Supabase project should be kept private (not shared publicly) as the only protection layer.
+
 ---
 
 ## Navigation
@@ -121,9 +124,9 @@ On mobile: sidebar collapses; hamburger button in header opens it as an overlay.
 - Meal Compliance % — `onPlanMeals ÷ totalLoggedMeals × 100`; display "—" if no meals logged yet
 - Workout Completion % — see Progress Logic for exact formula; display "—" before any workout logs exist
 - Current Streak — most recent unbroken run of consecutive logged days where every logged meal is on-plan; display "0" if streak is broken or no logs exist
-- Weekly Loss Rate (kg/week) — weight loss over the 7 most recent calendar days ending today (earliest logged weight in that window subtracted from today's/most recent weight, expressed as kg/week); display "—" if fewer than 2 weight entries exist within the last 7 days
+- Weekly Loss Rate (kg/week) — weight loss over the 7-day window ending on the current calendar date (regardless of whether today is logged). Computed as: (earliest logged weight in window) − (latest logged weight in window), expressed as kg/week. Window is always anchored to today. Display "—" if fewer than 2 weight entries exist within the last 7 calendar days.
 
-**Pace banner:**
+**Pace banner:** Hidden if no weight has been logged yet, or if the programme is over (after Day 33). When visible:
 - Green — On Track (actual cumulative loss within 0.5 kg of expected)
 - Yellow — Slightly Behind (0.5–1.5 kg behind expected)
 - Red — Behind Pace (>1.5 kg behind expected)
@@ -139,7 +142,10 @@ On mobile: sidebar collapses; hamburger button in header opens it as an overlay.
 - Actual weight line (amber) — plotted only for logged days; if no data exists, show an empty chart with axes and the target line only
 - Dashed target reference line from 81.70 kg (Day 1) to 70.00 kg (Day 33)
 
-**Today's workout card:** Shows workout name and exercise list (sets × reps or duration). The card is hidden when `workout_status = 'rest'`. Since the workout_status field defaults to Rest on Sundays (but the user may override it), this rule naturally handles Sundays — if the user overrides Sunday to Done/Partial/Missed, the card is shown.
+**Today's workout card:** Shows workout name and exercise list (sets × reps or duration). Visibility rules (checked in order):
+1. If today is Sunday AND no `daily_logs` row exists for today → card is hidden (no saved status to override the default yet)
+2. If a `daily_logs` row exists and `workout_status = 'rest'` → card is hidden
+3. Otherwise (non-Sunday with no row, or any day with status ≠ rest) → card is shown
 
 ---
 
@@ -184,6 +190,7 @@ Workout type is derived from the **calendar day-of-week** of the current date (n
 **Workout log:**
 - 4-button group: Done / Partial / Missed / Rest
 - On Sundays, **Rest** is pre-selected; user may change it
+- On non-Sunday days (first visit, no prior log), no button is pre-selected — user must choose one
 - Text area for notes
 
 **Wellness log:**
@@ -192,6 +199,8 @@ Workout type is derived from the **calendar day-of-week** of the current date (n
 - Energy — 1–5 star rating
 - Hunger — 1–5 star rating
 - Soreness / extra notes — text area
+
+**Form load behaviour:** When the user opens Daily Check-in, the app fetches the existing `daily_logs` row and all `meals` rows for today's date. If data exists, all fields are pre-populated with the saved values. If no row exists, the form starts empty (except workout status on Sundays, which defaults to Rest).
 
 **Save button:** Upserts `daily_logs` row for today's date. For meals: deletes all existing `meals` rows for today's date, then inserts fresh rows only for meal cards where the description is non-empty. This ensures cleared descriptions remove stale rows. On any Supabase write failure, show a toast error ("Save failed — check your connection") and keep the form data intact for retry. No silent failures.
 
@@ -222,6 +231,8 @@ Both tables sorted newest → oldest.
 
 ## Section 4 — Measurements
 
+**Form load behaviour:** When the user selects a date in the entry form, the app checks for an existing `measurements` row for that date. If found, the three fields are pre-populated with the saved values (edit mode). If not found, the fields are empty (new entry mode).
+
 **Entry form:**
 - Waist (cm), Chest (cm), Arm (cm)
 - Date (defaults to today; user may change)
@@ -245,7 +256,7 @@ Columns: Date · Waist · Chest · Arm · Δ Waist · Δ Chest · Δ Arm (delta 
 | Projected April 25 weight | `currentWeight − (avgDailyLoss × daysRemaining)`; avgDailyLoss = (START_WEIGHT_KG − currentWeight) ÷ daysWithWeightLogged. If avgDailyLoss ≤ 0 (weight unchanged or rising), show the projection as-is — it will equal or exceed the current weight, which is informative feedback. |
 | Stall alert | weight_kg (rounded to 2dp) identical across the 3 most recent log entries (order by log_date); calendar gaps are irrelevant |
 | Meal compliance % | `sum(on_plan = true) ÷ count(all logged meals) × 100` across all days — meal-level aggregation, not average of per-day percentages; show "—" when denominator = 0 |
-| Current streak | Most recent unbroken run of logged days (days with a `daily_logs` row) where every saved meal row for that day has `on_plan = true`. A logged day with zero meal rows saved is skipped — it neither extends nor breaks the streak. Displayed identically in Dashboard and History summary bar. |
+| Current streak | Most recent unbroken run of logged days (days with a `daily_logs` row AND at least one saved meal row) where every saved meal row for that day has `on_plan = true`. A logged day with zero saved meal rows is excluded from the streak calculation entirely (skipped — not counted, not breaking). Displayed identically in Dashboard and History summary bar. |
 | Workout completion % | `(done + partial) ÷ nonRestDaysElapsed × 100` where nonRestDaysElapsed = count of Mon–Sat calendar days from Day 1 up to and including today, capped at 30 (the exact Mon–Sat count across the 33-day programme: 5 full weeks × 6 days = 30) |
 
 ---
