@@ -202,7 +202,12 @@ Workout type is derived from the **calendar day-of-week** of the current date (n
 
 **Form load behaviour:** When the user opens Daily Check-in, the app fetches the existing `daily_logs` row and all `meals` rows for today's date. If data exists, all fields are pre-populated with the saved values. If no row exists, the form starts empty (except workout status on Sundays, which defaults to Rest).
 
-**Save button:** Upserts `daily_logs` row for today's date. For meals: deletes all existing `meals` rows for today's date, then inserts fresh rows only for meal cards where the description is non-empty. This ensures cleared descriptions remove stale rows. On any Supabase write failure, show a toast error ("Save failed — check your connection") and keep the form data intact for retry. No silent failures.
+**Save button — operation order (must be sequential):**
+1. Upsert `daily_logs` row for today's date (must complete successfully before proceeding)
+2. Delete all existing `meals` rows for today's date
+3. Insert fresh `meals` rows for each meal card with a non-empty description
+
+This ordering ensures the FK constraint (`meals.log_date → daily_logs.log_date`) is never violated on first save. On any Supabase write failure at any step, show a toast error ("Save failed — check your connection") and keep the form data intact for retry. No silent failures.
 
 ---
 
@@ -253,8 +258,8 @@ Columns: Date · Waist · Chest · Arm · Δ Waist · Δ Chest · Δ Arm (delta 
 | On track | actual cumulative loss within 0.5 kg of expected cumulative loss |
 | Slightly behind | 0.5–1.5 kg behind expected cumulative loss |
 | Behind | >1.5 kg behind expected cumulative loss |
-| Projected April 25 weight | `currentWeight − (avgDailyLoss × daysRemaining)`; avgDailyLoss = (START_WEIGHT_KG − currentWeight) ÷ daysWithWeightLogged. If avgDailyLoss ≤ 0 (weight unchanged or rising), show the projection as-is — it will equal or exceed the current weight, which is informative feedback. |
-| Stall alert | weight_kg (rounded to 2dp) identical across the 3 most recent log entries (order by log_date); calendar gaps are irrelevant |
+| Projected April 25 weight | `currentWeight − (avgDailyLoss × daysRemaining)`; avgDailyLoss = (START_WEIGHT_KG − currentWeight) ÷ daysWithWeightLogged; daysRemaining = `differenceInDays(2026-04-25, today)` (calendar days from today to end date, inclusive). If avgDailyLoss ≤ 0 (weight unchanged or rising), show the projection as-is — it will equal or exceed the current weight, which is informative feedback. |
+| Stall alert | Only evaluated when at least 3 weight entries exist. weight_kg (rounded to 2dp) identical across the 3 most recent log entries (order by log_date); calendar gaps are irrelevant. Suppressed entirely if fewer than 3 weight_kg values have been saved. |
 | Meal compliance % | `sum(on_plan = true) ÷ count(all logged meals) × 100` across all days — meal-level aggregation, not average of per-day percentages; show "—" when denominator = 0 |
 | Current streak | Most recent unbroken run of logged days (days with a `daily_logs` row AND at least one saved meal row) where every saved meal row for that day has `on_plan = true`. A logged day with zero saved meal rows is excluded from the streak calculation entirely (skipped — not counted, not breaking). Displayed identically in Dashboard and History summary bar. |
 | Workout completion % | `(done + partial) ÷ nonRestDaysElapsed × 100` where nonRestDaysElapsed = count of Mon–Sat calendar days from Day 1 up to and including today, capped at 30 (the exact Mon–Sat count across the 33-day programme: 5 full weeks × 6 days = 30) |
