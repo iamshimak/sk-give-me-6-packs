@@ -6,6 +6,8 @@ import type { DailyLog, Meal } from '../types'
 export type PaceBanner = 'on-track' | 'slightly-behind' | 'behind'
 
 export function getExpectedWeight(dayNumber: number): number {
+  // Uses 32 equal loss intervals over days 1–33, so expected weight on Day 33
+  // is ~70.36 kg (not exactly 70.00) — this is intentional per spec.
   return START_WEIGHT_KG - ((11.70 / 33) * (dayNumber - 1))
 }
 
@@ -24,7 +26,8 @@ export function getProjectedEndWeight(
   currentWeight: number,
   daysWithWeightLogged: number,
   today: string,
-): number {
+): number | null {
+  if (daysWithWeightLogged === 0) return null
   const avgDailyLoss = (START_WEIGHT_KG - currentWeight) / daysWithWeightLogged
   const daysRemaining = differenceInCalendarDays(
     parseISO(PROGRAMME_END),
@@ -34,7 +37,8 @@ export function getProjectedEndWeight(
 }
 
 export function isStallAlert(logs: DailyLog[]): boolean {
-  const weights = logs
+  const weights = [...logs]
+    .sort((a, b) => a.log_date.localeCompare(b.log_date))
     .filter((l) => l.weight_kg !== null)
     .map((l) => Math.round(l.weight_kg! * 100) / 100)
 

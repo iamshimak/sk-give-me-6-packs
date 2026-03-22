@@ -64,10 +64,15 @@ describe('getProjectedEndWeight', () => {
     expect(typeof result).toBe('number')
   })
 
-  it('returns current weight or above when not losing', () => {
-    // avgDailyLoss = (81.70 - 81.70) / 1 = 0
+  it('returns current weight or above when not losing (zero loss)', () => {
+    // avgDailyLoss = (81.70 - 81.70) / 1 = 0, so projection = currentWeight
     const result = getProjectedEndWeight(81.70, 1, '2026-03-23')
-    expect(result).toBeGreaterThanOrEqual(81.70)
+    expect(result).not.toBeNull()
+    expect(result!).toBeGreaterThanOrEqual(81.70)
+  })
+
+  it('returns null when no weight entries logged yet', () => {
+    expect(getProjectedEndWeight(81.70, 0, '2026-03-23')).toBeNull()
   })
 })
 
@@ -151,6 +156,21 @@ describe('getCurrentStreak', () => {
 
   it('returns 0 when no logs', () => {
     expect(getCurrentStreak([], [])).toBe(0)
+  })
+
+  it('skips trailing off-plan days — streak reflects most recent on-plan run', () => {
+    const logs = [
+      BASE_LOG('2026-03-23'),
+      BASE_LOG('2026-03-24'),
+      BASE_LOG('2026-03-25'), // most recent, off-plan
+    ]
+    const meals: Meal[] = [
+      { log_date: '2026-03-23', meal_type: 'breakfast', description: 'Fruit', on_plan: true },
+      { log_date: '2026-03-24', meal_type: 'breakfast', description: 'Fruit', on_plan: true },
+      { log_date: '2026-03-25', meal_type: 'breakfast', description: 'Cake', on_plan: false },
+    ]
+    // Most recent day is off-plan, but streak shows the previous on-plan run
+    expect(getCurrentStreak(logs, meals)).toBe(2)
   })
 })
 
