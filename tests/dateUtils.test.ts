@@ -60,6 +60,10 @@ describe('getWorkoutForDate', () => {
   it('returns strength for Friday (2026-03-27)', () => {
     expect(getWorkoutForDate('2026-03-27').type).toBe('strength')
   })
+
+  it('returns cardio for Saturday (2026-03-28)', () => {
+    expect(getWorkoutForDate('2026-03-28').type).toBe('cardio')
+  })
 })
 
 describe('isSunday', () => {
@@ -87,5 +91,16 @@ describe('getNonRestDaysElapsed', () => {
 
   it('caps at 30 after programme end', () => {
     expect(getNonRestDaysElapsed('2026-04-30')).toBe(30)
+  })
+})
+
+describe('formatDate', () => {
+  it('includes the year in the output', () => {
+    expect(formatDate('2026-03-23')).toContain('2026')
+  })
+
+  it('includes an abbreviated month name', () => {
+    const result = formatDate('2026-03-23')
+    expect(result.toLowerCase()).toMatch(/mar/)
   })
 })

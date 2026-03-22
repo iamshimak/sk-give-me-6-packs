@@ -15,6 +15,12 @@ export function getProgrammeState(today: string): ProgrammeState {
   return 'active'
 }
 
+/**
+ * Returns the programme day number (1–33) for a given date.
+ * Clamps to 1 before the programme starts and 33 after it ends.
+ * Call getProgrammeState() first if you need to know whether
+ * the date is actually within the active window.
+ */
 export function getDayNumber(today: string): number {
   const diff = differenceInCalendarDays(parseDate(today), parseDate(PROGRAMME_START)) + 1
   return Math.max(1, Math.min(33, diff))
@@ -34,6 +40,11 @@ export function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/**
+ * Counts Mon–Sat calendar days elapsed from programme start up to today.
+ * Assumes all date inputs resolve to midnight UTC (as produced by parseISO).
+ * Capped at NON_REST_DAYS_TOTAL (30).
+ */
 export function getNonRestDaysElapsed(today: string): number {
   const start = parseDate(PROGRAMME_START)
   const end = parseDate(PROGRAMME_END)
