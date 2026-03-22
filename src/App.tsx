@@ -3,8 +3,7 @@ import { getProgrammeState } from './lib/dateUtils'
 import Login from './pages/Login'
 import Countdown from './pages/Countdown'
 import Layout from './components/Layout'
-
-type Section = 'dashboard' | 'checkin' | 'history' | 'measurements'
+import type { Section } from './types'
 
 export default function App() {
   const [isAuthed, setIsAuthed] = useState(

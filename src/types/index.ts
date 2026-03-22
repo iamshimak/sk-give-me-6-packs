@@ -1,5 +1,7 @@
 export type ProgrammeState = 'before' | 'active' | 'after'
 
+export type Section = 'dashboard' | 'checkin' | 'history' | 'measurements'
+
 export type WorkoutType = 'strength' | 'cardio' | 'rest'
 
 export type WorkoutStatus = 'done' | 'partial' | 'missed' | 'rest'

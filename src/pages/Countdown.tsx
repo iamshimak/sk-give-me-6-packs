@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { PROGRAMME_START } from '../lib/constants'
 
 export default function Countdown() {
@@ -10,7 +10,7 @@ export default function Countdown() {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-amber-400 mb-4">6 Pack Tracker</h1>
         <p className="text-gray-400 text-lg mb-2">Programme starts on</p>
-        <p className="text-white text-2xl font-semibold mb-6">March 23, 2026</p>
+        <p className="text-white text-2xl font-semibold mb-6">{format(parseISO(PROGRAMME_START), 'MMMM d, yyyy')}</p>
         <div className="bg-navy-800 rounded-xl px-8 py-6 inline-block">
           <p className="text-5xl font-bold text-amber-400">{days}</p>
           <p className="text-gray-400 mt-1">days to go</p>
