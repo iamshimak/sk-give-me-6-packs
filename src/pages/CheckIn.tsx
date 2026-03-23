@@ -35,7 +35,7 @@ function emptyForm(isRestDay: boolean): CheckInFormState {
 }
 
 function logToForm(log: DailyLog, meals: Meal[]): CheckInFormState {
-  const form = emptyForm(false)
+  const form = emptyForm(isSunday(log.log_date))
   form.weight_kg = log.weight_kg?.toString() ?? ''
   form.workout_status = log.workout_status
   form.workout_notes = log.workout_notes ?? ''
@@ -51,20 +51,25 @@ function logToForm(log: DailyLog, meals: Meal[]): CheckInFormState {
 }
 
 export default function CheckIn() {
-  const today = new Date().toISOString().slice(0, 10)
+  const [today] = useState(() => new Date().toISOString().slice(0, 10))
   const restDay = isSunday(today)
 
   const [form, setForm] = useState<CheckInFormState>(emptyForm(restDay))
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Load existing data for today
   useEffect(() => {
     async function load() {
-      const [{ data: logData }, { data: mealsData }] = await Promise.all([
+      const [{ data: logData, error: logErr }, { data: mealsData, error: mealsErr }] = await Promise.all([
         supabase.from('daily_logs').select('*').eq('log_date', today).maybeSingle(),
         supabase.from('meals').select('*').eq('log_date', today),
       ])
+      if (logErr || mealsErr) {
+        setLoadError('Failed to load today\'s data — check your connection')
+        return
+      }
       if (logData) {
         setForm(logToForm(logData as DailyLog, (mealsData ?? []) as Meal[]))
       }
@@ -73,7 +78,7 @@ export default function CheckIn() {
   }, [today])
 
   const weightDelta = form.weight_kg
-    ? (parseFloat(form.weight_kg) - START_WEIGHT_KG).toFixed(2)
+    ? parseFloat(form.weight_kg) - START_WEIGHT_KG
     : null
 
   const handleSave = useCallback(async () => {
@@ -122,6 +127,8 @@ export default function CheckIn() {
     }
   }, [form, today])
 
+  if (loadError) return <div className="text-red-400 p-4">{loadError}</div>
+
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold text-white">Daily Check-in</h1>
@@ -140,8 +147,8 @@ export default function CheckIn() {
         />
         <p className="text-sm text-gray-400 mt-2">kg</p>
         {weightDelta !== null && (
-          <p className={`text-sm mt-1 font-medium ${parseFloat(weightDelta) < 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {parseFloat(weightDelta) < 0 ? '−' : '+'}{Math.abs(parseFloat(weightDelta)).toFixed(2)} kg from start
+          <p className={`text-sm mt-1 font-medium ${weightDelta < 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {weightDelta < 0 ? '−' : '+'}{Math.abs(weightDelta).toFixed(2)} kg from start
           </p>
         )}
       </section>
