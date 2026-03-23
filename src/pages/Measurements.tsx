@@ -15,11 +15,13 @@ export default function Measurements() {
   const [saving, setSaving] = useState(false)
 
   const loadHistory = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('measurements')
       .select('*')
       .order('measured_at')
-    setHistory((data ?? []) as Measurement[])
+    if (!error) {
+      setHistory((data ?? []) as Measurement[])
+    }
   }, [])
 
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -38,7 +40,7 @@ export default function Measurements() {
     }
   }, [date, history])
 
-  const canSave = waist !== '' && chest !== '' && arm !== ''
+  const canSave = parseFloat(waist) > 0 && parseFloat(chest) > 0 && parseFloat(arm) > 0
 
   const handleSave = useCallback(async () => {
     if (!canSave) return
@@ -96,6 +98,7 @@ export default function Measurements() {
               <input
                 type="number"
                 step="0.1"
+                min="0"
                 value={value}
                 onChange={(e) => set(e.target.value)}
                 className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400"
@@ -141,7 +144,7 @@ export default function Measurements() {
                       <td className={`px-4 py-2 font-mono ${m.chest_cm <= first.chest_cm ? 'text-green-400' : 'text-red-400'}`}>
                         {deltaVal(m.chest_cm, first.chest_cm)}
                       </td>
-                      <td className={`px-4 py-2 font-mono ${m.arm_cm <= first.arm_cm ? 'text-green-400' : 'text-red-400'}`}>
+                      <td className={`px-4 py-2 font-mono ${m.arm_cm >= first.arm_cm ? 'text-green-400' : 'text-red-400'}`}>
                         {deltaVal(m.arm_cm, first.arm_cm)}
                       </td>
                     </>
