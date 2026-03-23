@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer,
@@ -57,7 +57,7 @@ const cardVariants = {
 }
 
 export default function Dashboard() {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
   const programmeState = getProgrammeState(today)
   const dayNumber = getDayNumber(today)
   const workout = getWorkoutForDate(today)
@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // toast: reserved for future error notifications (e.g. retry after load failure)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null)
 
   useEffect(() => {
@@ -118,8 +119,10 @@ export default function Dashboard() {
   const streak = getCurrentStreak(logs, meals)
   const weeklyRate = getWeeklyLossRate(logs, today)
 
-  const showPace = latestWeight !== null && programmeState === 'active'
-  const pace = showPace ? getPaceBanner(latestWeight!, dayNumber) : null
+  const pace = (latestWeight !== null && programmeState === 'active')
+    ? getPaceBanner(latestWeight, dayNumber)
+    : null
+  const showPace = pace !== null
   const projected = latestWeight !== null
     ? getProjectedEndWeight(latestWeight, weightLogs.length, today)
     : null
@@ -387,8 +390,8 @@ export default function Dashboard() {
               Today's Workout — {workout.name}
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {workout.exercises.map((ex, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {workout.exercises.map((ex) => (
+                <div key={ex.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, color: '#fff' }}>{ex.name}</span>
                   <span style={{ fontSize: 14, fontFamily: "'Space Mono', monospace", color: '#f5a623' }}>{ex.detail}</span>
                 </div>
