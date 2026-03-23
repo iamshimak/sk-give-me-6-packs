@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { isSunday } from '../lib/dateUtils'
 import { START_WEIGHT_KG } from '../lib/constants'
@@ -127,148 +128,204 @@ export default function CheckIn() {
     }
   }, [form, today])
 
-  if (loadError) return <div className="text-red-400 p-4">{loadError}</div>
+  if (loadError) return <div style={{ color: '#f87171', padding: 16 }}>{loadError}</div>
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold text-white">Daily Check-in</h1>
-      <p className="text-gray-400 text-sm">{today}</p>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Weight */}
-      <section className="bg-navy-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Weight</h2>
-        <input
-          type="number"
-          step="0.01"
-          placeholder="e.g. 81.20"
-          value={form.weight_kg}
-          onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
-          className="w-40 bg-navy-900 border border-navy-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-400"
-        />
-        <p className="text-sm text-gray-400 mt-2">kg</p>
-        {weightDelta !== null && (
-          <p className={`text-sm mt-1 font-medium ${weightDelta < 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {weightDelta < 0 ? '−' : '+'}{Math.abs(weightDelta).toFixed(2)} kg from start
-          </p>
-        )}
-      </section>
-
-      {/* Meals */}
-      <section className="bg-navy-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Meals</h2>
-        <div className="space-y-4">
-          {MEAL_TYPES.map((t) => (
-            <div key={t}>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-white text-sm font-medium">{MEAL_LABELS[t]}</label>
-                <button
-                  type="button"
-                  onClick={() => setForm({
-                    ...form,
-                    meals: { ...form.meals, [t]: { ...form.meals[t], on_plan: !form.meals[t].on_plan } },
-                  })}
-                  className={`text-xs px-3 py-1 rounded-full font-medium transition ${
-                    form.meals[t].on_plan
-                      ? 'bg-green-700/40 text-green-300 hover:bg-green-700/60'
-                      : 'bg-red-700/40 text-red-300 hover:bg-red-700/60'
-                  }`}
-                >
-                  {form.meals[t].on_plan ? '✅ On Plan' : '❌ Off Plan'}
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                placeholder="What did you eat?"
-                value={form.meals[t].description}
-                onChange={(e) => setForm({
-                  ...form,
-                  meals: { ...form.meals, [t]: { ...form.meals[t], description: e.target.value } },
-                })}
-                className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 resize-none"
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Workout */}
-      <section className="bg-navy-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Workout</h2>
-        <div className="flex gap-2 flex-wrap mb-3">
-          {WORKOUT_STATUSES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setForm({ ...form, workout_status: s })}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium capitalize transition ${
-                form.workout_status === s
-                  ? 'bg-amber-400 text-navy-900'
-                  : 'bg-navy-900 text-gray-400 hover:text-white'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <textarea
-          rows={2}
-          placeholder="Notes (optional)"
-          value={form.workout_notes}
-          onChange={(e) => setForm({ ...form, workout_notes: e.target.value })}
-          className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 resize-none"
-        />
-      </section>
-
-      {/* Wellness */}
-      <section className="bg-navy-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Wellness</h2>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="text-sm text-gray-400 block mb-1">Water (ml)</label>
-            <input
-              type="number"
-              value={form.water_ml}
-              onChange={(e) => setForm({ ...form, water_ml: e.target.value })}
-              className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-            />
-          </div>
-          <div>
-            <label className="text-sm text-gray-400 block mb-1">Sleep (hours)</label>
-            <input
-              type="number"
-              step="0.5"
-              value={form.sleep_hours}
-              onChange={(e) => setForm({ ...form, sleep_hours: e.target.value })}
-              className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <StarRating label="Energy" value={form.energy} onChange={(v) => setForm({ ...form, energy: v })} />
-          <StarRating label="Hunger" value={form.hunger} onChange={(v) => setForm({ ...form, hunger: v })} />
-        </div>
+        {/* Header */}
         <div>
-          <label className="text-sm text-gray-400 block mb-1">Soreness / Notes</label>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px', background: 'linear-gradient(135deg, #fff 50%, rgba(255,255,255,0.40))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Daily Check-in
+          </h1>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '1px' }}>{today}</p>
+        </div>
+
+        {/* Weight */}
+        <section style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: 24 }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 12 }}>Weight</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="e.g. 81.20"
+              value={form.weight_kg}
+              onChange={(e) => setForm({ ...form, weight_kg: e.target.value })}
+              className="glass-input"
+              style={{ width: 160 }}
+            />
+            <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: 14 }}>kg</span>
+          </div>
+          {weightDelta !== null && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{ fontSize: 13, marginTop: 8, fontWeight: 500, color: weightDelta < 0 ? '#4ade80' : '#f87171' }}
+            >
+              {weightDelta < 0 ? '−' : '+'}{Math.abs(weightDelta).toFixed(2)} kg from start
+            </motion.p>
+          )}
+        </section>
+
+        {/* Meals */}
+        <section style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: 24 }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>Meals</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {MEAL_TYPES.map((t) => (
+              <div key={t}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ fontSize: 14, fontWeight: 500, color: '#fff' }}>{MEAL_LABELS[t]}</label>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    onClick={() => setForm({
+                      ...form,
+                      meals: { ...form.meals, [t]: { ...form.meals[t], on_plan: !form.meals[t].on_plan } },
+                    })}
+                    style={{
+                      fontSize: 12,
+                      padding: '4px 12px',
+                      borderRadius: 20,
+                      fontWeight: 500,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      ...(form.meals[t].on_plan
+                        ? { background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ade80' }
+                        : { background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171' }),
+                    }}
+                  >
+                    {form.meals[t].on_plan ? '✅ On Plan' : '❌ Off Plan'}
+                  </motion.button>
+                </div>
+                <textarea
+                  rows={2}
+                  placeholder="What did you eat?"
+                  value={form.meals[t].description}
+                  onChange={(e) => setForm({
+                    ...form,
+                    meals: { ...form.meals, [t]: { ...form.meals[t], description: e.target.value } },
+                  })}
+                  className="glass-input"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Workout */}
+        <section style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: 24 }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 12 }}>Workout</h2>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {WORKOUT_STATUSES.map((s) => {
+              const active = form.workout_status === s
+              return (
+                <motion.button
+                  key={s}
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  onClick={() => setForm({ ...form, workout_status: s })}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: 20,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    textTransform: 'capitalize',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    ...(active
+                      ? { background: 'linear-gradient(135deg, #7c3aed, #f5a623)', color: 'white' }
+                      : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.60)', border: '1px solid rgba(255,255,255,0.10)' }),
+                  }}
+                >
+                  {s}
+                </motion.button>
+              )
+            })}
+          </div>
           <textarea
             rows={2}
-            value={form.soreness_notes}
-            onChange={(e) => setForm({ ...form, soreness_notes: e.target.value })}
-            className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-400 resize-none"
+            placeholder="Notes (optional)"
+            value={form.workout_notes}
+            onChange={(e) => setForm({ ...form, workout_notes: e.target.value })}
+            className="glass-input"
           />
-        </div>
-      </section>
+        </section>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full bg-amber-400 text-navy-900 font-bold py-3 rounded-xl hover:bg-amber-300 disabled:opacity-50 transition"
-      >
-        {saving ? 'Saving…' : "Save Today's Check-in"}
-      </button>
+        {/* Wellness */}
+        <section style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: 24 }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>Wellness</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 6 }}>Water (ml)</label>
+              <input
+                type="number"
+                value={form.water_ml}
+                onChange={(e) => setForm({ ...form, water_ml: e.target.value })}
+                className="glass-input"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 6 }}>Sleep (hours)</label>
+              <input
+                type="number"
+                step="0.5"
+                value={form.sleep_hours}
+                onChange={(e) => setForm({ ...form, sleep_hours: e.target.value })}
+                className="glass-input"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <StarRating label="Energy" value={form.energy} onChange={(v) => setForm({ ...form, energy: v })} />
+            <StarRating label="Hunger" value={form.hunger} onChange={(v) => setForm({ ...form, hunger: v })} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 6 }}>Soreness / Notes</label>
+            <textarea
+              rows={2}
+              value={form.soreness_notes}
+              onChange={(e) => setForm({ ...form, soreness_notes: e.target.value })}
+              className="glass-input"
+            />
+          </div>
+        </section>
 
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-      )}
+        {/* Save button */}
+        <motion.button
+          onClick={handleSave}
+          disabled={saving}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          style={{
+            width: '100%',
+            background: 'linear-gradient(135deg, #7c3aed, #f5a623)',
+            border: 'none',
+            borderRadius: 16,
+            color: 'white',
+            fontWeight: 700,
+            fontSize: 15,
+            padding: '14px 0',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            opacity: saving ? 0.6 : 1,
+            fontFamily: 'inherit',
+          }}
+        >
+          {saving ? 'Saving…' : "Save Today's Check-in"}
+        </motion.button>
+
+      </div>
+
+      <AnimatePresence>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
