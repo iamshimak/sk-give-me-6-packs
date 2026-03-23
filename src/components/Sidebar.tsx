@@ -1,50 +1,95 @@
+import { motion } from 'framer-motion'
 import type { Section } from '../types'
 
-const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'checkin', label: 'Daily Check-in', icon: '✏️' },
-  { id: 'history', label: 'History', icon: '📅' },
-  { id: 'measurements', label: 'Measurements', icon: '📏' },
+const NAV_ITEMS: { id: Section; icon: string }[] = [
+  { id: 'dashboard', icon: '📊' },
+  { id: 'checkin', icon: '✏️' },
+  { id: 'history', icon: '📅' },
+  { id: 'measurements', icon: '📏' },
 ]
 
 interface Props {
   section: Section
   onNavigate: (s: Section) => void
-  isOpen: boolean
-  onClose: () => void
 }
 
-export default function Sidebar({ section, onNavigate, isOpen, onClose }: Props) {
+export default function Sidebar({ section, onNavigate }: Props) {
   return (
-    <>
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-      <aside
-        className={`fixed top-0 left-0 h-full w-56 bg-navy-800 z-30 flex flex-col py-6 px-3 transition-transform duration-200
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:z-auto`}
+    <aside
+      style={{
+        width: 72,
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        background: 'rgba(255,255,255,0.03)',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '20px 0',
+        gap: 6,
+        flexShrink: 0,
+      }}
+    >
+      {/* Logo mark */}
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #7c3aed, #f5a623)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 18,
+          marginBottom: 16,
+        }}
       >
-        <h1 className="text-amber-400 font-bold text-lg px-3 mb-8">6 Pack Tracker</h1>
-        <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => { onNavigate(item.id); onClose() }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition text-left
-                ${section === item.id
-                  ? 'bg-amber-400/10 text-amber-400'
-                  : 'text-gray-400 hover:text-white hover:bg-navy-700'
-                }`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </aside>
-    </>
+        💪
+      </div>
+
+      {NAV_ITEMS.map((item) => {
+        const active = section === item.id
+        return (
+          <motion.button
+            key={item.id}
+            onClick={() => onNavigate(item.id)}
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+              cursor: 'pointer',
+              border: 'none',
+              background: active ? 'rgba(124,58,237,0.2)' : 'transparent',
+              position: 'relative',
+              color: 'inherit',
+            }}
+          >
+            {item.icon}
+            {active && (
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '25%',
+                  height: '50%',
+                  width: 3,
+                  background: 'linear-gradient(180deg, #a855f7, #f5a623)',
+                  borderRadius: '0 3px 3px 0',
+                }}
+              />
+            )}
+          </motion.button>
+        )
+      })}
+    </aside>
   )
 }
