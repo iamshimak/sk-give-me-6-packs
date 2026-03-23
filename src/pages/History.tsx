@@ -53,7 +53,7 @@ export default function History() {
           { label: 'Days Logged', value: logs.length },
           { label: 'Meal Compliance', value: compliance !== null ? `${compliance}%` : '—' },
           { label: 'Workouts Done', value: workoutsDone },
-          { label: 'Avg Water', value: logs.length ? `${Math.round(avgWater)} ml` : '—' },
+          { label: 'Avg Water', value: logs.filter(l => l.water_ml).length ? `${Math.round(avgWater)} ml` : '—' },
           { label: 'Avg Sleep', value: logs.filter(l => l.sleep_hours).length ? `${avgSleep.toFixed(1)} h` : '—' },
           { label: 'Current Streak', value: `${streak} days` },
         ].map(({ label, value }) => (
