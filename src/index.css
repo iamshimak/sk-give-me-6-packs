@@ -2,14 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #0d0d1a;
-  --surface: #16213e;
-  --accent: #f5a623;
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background-color: #05050f;
+  color: #fff;
 }
 
-body {
-  background-color: var(--bg);
-  color: #e5e7eb;
-  font-family: system-ui, sans-serif;
+@keyframes drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(30px, -20px) scale(1.05); }
+  66%  { transform: translate(-20px, 25px) scale(0.97); }
+  100% { transform: translate(0, 0) scale(1); }
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* Glass input — used in CheckIn, Measurements, Login */
+.glass-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  color: white;
+  width: 100%;
+  outline: none;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.glass-input:focus {
+  border-color: #f5a623;
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
+}
+.glass-input::placeholder {
+  color: rgba(255,255,255,0.25);
+}
+input[type="date"].glass-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.4;
+}
+textarea.glass-input {
+  resize: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
