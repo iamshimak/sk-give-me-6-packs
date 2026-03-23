@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface Props {
   message: string
@@ -7,10 +7,12 @@ interface Props {
 }
 
 export default function Toast({ message, type = 'error', onDismiss }: Props) {
+  const onDismissRef = useRef(onDismiss)
+  useEffect(() => { onDismissRef.current = onDismiss })
   useEffect(() => {
-    const t = setTimeout(onDismiss, 4000)
+    const t = setTimeout(() => onDismissRef.current(), 4000)
     return () => clearTimeout(t)
-  }, [onDismiss])
+  }, []) // empty deps — timer starts once on mount
 
   return (
     <div

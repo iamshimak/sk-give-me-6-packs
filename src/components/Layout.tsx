@@ -12,15 +12,15 @@ interface Props {
   onNavigate: (s: Section) => void
 }
 
+function ActivePage({ section }: { section: Section }) {
+  if (section === 'dashboard') return <Dashboard />
+  if (section === 'checkin') return <CheckIn />
+  if (section === 'history') return <History />
+  return <Measurements />
+}
+
 export default function Layout({ section, onNavigate }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  const page = {
-    dashboard: <Dashboard />,
-    checkin: <CheckIn />,
-    history: <History />,
-    measurements: <Measurements />,
-  }[section]
 
   return (
     <div className="flex h-screen bg-navy-900 overflow-hidden">
@@ -42,7 +42,7 @@ export default function Layout({ section, onNavigate }: Props) {
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           <Suspense fallback={<div className="text-gray-400">Loading…</div>}>
-            {page}
+            <ActivePage section={section} />
           </Suspense>
         </main>
       </div>
