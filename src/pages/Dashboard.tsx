@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { format, parseISO } from 'date-fns'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import { supabase } from '../lib/supabase'
 import {
-  START_WEIGHT_KG, GOAL_WEIGHT_KG, TOTAL_DAYS,
+  START_WEIGHT_KG, GOAL_WEIGHT_KG, TOTAL_DAYS, PROGRAMME_END,
 } from '../lib/constants'
 import {
   getDayNumber, getWorkoutForDate, isSunday, getProgrammeState,
@@ -12,10 +13,22 @@ import {
 import {
   getPaceBanner, getProjectedEndWeight,
   isStallAlert, getMealCompliance, getCurrentStreak,
-  getWorkoutCompletionPct, getWeeklyLossRate,
+  getWorkoutCompletionPct, getWeeklyLossRate, getExpectedWeight,
 } from '../lib/computations'
 import StatCard from '../components/StatCard'
 import type { DailyLog, Meal } from '../types'
+
+const paceColor = {
+  'on-track': 'bg-green-900/50 border-green-500 text-green-300',
+  'slightly-behind': 'bg-yellow-900/50 border-yellow-500 text-yellow-300',
+  'behind': 'bg-red-900/50 border-red-500 text-red-300',
+}
+
+const paceLabel = {
+  'on-track': '✅ On Track',
+  'slightly-behind': '⚠️ Slightly Behind',
+  'behind': '🔴 Behind Pace',
+}
 
 export default function Dashboard() {
   const today = new Date().toISOString().slice(0, 10)
@@ -27,13 +40,19 @@ export default function Dashboard() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
-      const [{ data: logsData }, { data: mealsData }] = await Promise.all([
+      const [{ data: logsData, error: logsErr }, { data: mealsData, error: mealsErr }] = await Promise.all([
         supabase.from('daily_logs').select('*').order('log_date'),
         supabase.from('meals').select('*'),
       ])
+      if (logsErr || mealsErr) {
+        setLoadError('Failed to load data — check your connection')
+        setLoading(false)
+        return
+      }
       const allLogs: DailyLog[] = logsData ?? []
       setLogs(allLogs)
       setMeals(mealsData ?? [])
@@ -44,6 +63,7 @@ export default function Dashboard() {
   }, [today])
 
   if (loading) return <div className="text-gray-400">Loading…</div>
+  if (loadError) return <div className="text-red-400">{loadError}</div>
 
   const weightLogs = logs.filter((l) => l.weight_kg !== null)
   const latestWeight = weightLogs.at(-1)?.weight_kg ?? null
@@ -64,7 +84,7 @@ export default function Dashboard() {
   // Chart data: target line + actual weight points
   const chartData = Array.from({ length: TOTAL_DAYS }, (_, i) => {
     const day = i + 1
-    const target = parseFloat((START_WEIGHT_KG - ((11.70 / 33) * i)).toFixed(2))
+    const target = parseFloat(getExpectedWeight(day).toFixed(2))
     const logForDay = logs.find((l) => getDayNumber(l.log_date) === day)
     return {
       day,
@@ -81,18 +101,6 @@ export default function Dashboard() {
     (isSunday(today) && !todayLog) ||
     todayLog?.workout_status === 'rest'
   )
-
-  const paceColor = {
-    'on-track': 'bg-green-900/50 border-green-500 text-green-300',
-    'slightly-behind': 'bg-yellow-900/50 border-yellow-500 text-yellow-300',
-    'behind': 'bg-red-900/50 border-red-500 text-red-300',
-  }
-
-  const paceLabel = {
-    'on-track': '✅ On Track',
-    'slightly-behind': '⚠️ Slightly Behind',
-    'behind': '🔴 Behind Pace',
-  }
 
   return (
     <div className="space-y-6">
@@ -127,7 +135,7 @@ export default function Dashboard() {
           <p className="font-semibold">{paceLabel[pace]}</p>
           {projected !== null && (
             <p className="text-sm mt-1">
-              Projected weight on April 25: <strong>{projected.toFixed(2)} kg</strong>
+              Projected weight on {format(parseISO(PROGRAMME_END), 'MMMM d')}: <strong>{projected.toFixed(2)} kg</strong>
               {' '}(goal: {GOAL_WEIGHT_KG} kg)
             </p>
           )}
@@ -156,7 +164,7 @@ export default function Dashboard() {
           <LineChart data={chartData}>
             <XAxis dataKey="day" stroke="#4b5563" tick={{ fill: '#9ca3af', fontSize: 11 }} />
             <YAxis
-              domain={[68, 83]}
+              domain={[Math.floor(GOAL_WEIGHT_KG) - 2, Math.ceil(START_WEIGHT_KG) + 2]}
               stroke="#4b5563"
               tick={{ fill: '#9ca3af', fontSize: 11 }}
               tickFormatter={(v) => `${v}`}
