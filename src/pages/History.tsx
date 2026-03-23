@@ -15,13 +15,19 @@ export default function History() {
   const [logs, setLogs] = useState<DailyLog[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
-      const [{ data: logsData }, { data: mealsData }] = await Promise.all([
+      const [{ data: logsData, error: logsErr }, { data: mealsData, error: mealsErr }] = await Promise.all([
         supabase.from('daily_logs').select('*').order('log_date', { ascending: false }),
         supabase.from('meals').select('*').order('log_date', { ascending: false }),
       ])
+      if (logsErr || mealsErr) {
+        setLoadError('Failed to load history — check your connection')
+        setLoading(false)
+        return
+      }
       setLogs(logsData ?? [])
       setMeals(mealsData ?? [])
       setLoading(false)
@@ -30,6 +36,7 @@ export default function History() {
   }, [])
 
   if (loading) return <div className="text-gray-400">Loading…</div>
+  if (loadError) return <div className="text-red-400 p-4">{loadError}</div>
 
   const compliance = getMealCompliance(meals)
   const streak = getCurrentStreak([...logs].reverse(), meals)
@@ -120,7 +127,7 @@ export default function History() {
             <tbody>
               {meals.map((meal, i) => (
                 <tr
-                  key={i}
+                  key={meal.id ?? i}
                   className={`border-b border-navy-700/50 ${!meal.on_plan ? 'bg-red-900/20' : ''}`}
                 >
                   <td className="px-4 py-2 whitespace-nowrap">{formatDate(meal.log_date)}</td>
