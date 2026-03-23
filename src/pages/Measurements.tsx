@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import { formatDate } from '../lib/dateUtils'
 import Toast from '../components/Toast'
@@ -72,98 +73,125 @@ export default function Measurements() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold text-white">Measurements</h1>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Entry form */}
-      <div className="bg-navy-800 rounded-xl p-4">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Log Measurements</h2>
-        <div className="mb-4">
-          <label className="text-sm text-gray-400 block mb-1">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-          />
-        </div>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          {[
-            { label: 'Waist (cm)', value: waist, set: setWaist },
-            { label: 'Chest (cm)', value: chest, set: setChest },
-            { label: 'Arm (cm)', value: arm, set: setArm },
-          ].map(({ label, value, set }) => (
-            <div key={label}>
-              <label className="text-sm text-gray-400 block mb-1">{label}</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                value={value}
-                onChange={(e) => set(e.target.value)}
-                className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-400"
-              />
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={!canSave || saving}
-          className="w-full bg-amber-400 text-navy-900 font-bold py-2.5 rounded-xl hover:bg-amber-300 disabled:opacity-40 transition"
-        >
-          {saving ? 'Saving…' : 'Save Measurements'}
-        </button>
-      </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, background: 'linear-gradient(135deg, #fff 50%, rgba(255,255,255,0.40))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          Measurements
+        </h1>
 
-      {/* History table */}
-      <div className="bg-navy-800 rounded-xl overflow-hidden">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide px-4 py-3 border-b border-navy-700">
-          Measurement History
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-gray-400 text-xs uppercase border-b border-navy-700">
-                {['Date', 'Waist', 'Chest', 'Arm', 'Δ Waist', 'Δ Chest', 'Δ Arm'].map(h => (
-                  <th key={h} className="px-4 py-2 text-left whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...history].reverse().map((m) => (
-                <tr key={m.measured_at} className="border-b border-navy-700/50 hover:bg-navy-700/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{formatDate(m.measured_at)}</td>
-                  <td className="px-4 py-2">{m.waist_cm}</td>
-                  <td className="px-4 py-2">{m.chest_cm}</td>
-                  <td className="px-4 py-2">{m.arm_cm}</td>
-                  {first ? (
-                    <>
-                      <td className={`px-4 py-2 font-mono ${m.waist_cm <= first.waist_cm ? 'text-green-400' : 'text-red-400'}`}>
-                        {deltaVal(m.waist_cm, first.waist_cm)}
-                      </td>
-                      <td className={`px-4 py-2 font-mono ${m.chest_cm <= first.chest_cm ? 'text-green-400' : 'text-red-400'}`}>
-                        {deltaVal(m.chest_cm, first.chest_cm)}
-                      </td>
-                      <td className={`px-4 py-2 font-mono ${m.arm_cm >= first.arm_cm ? 'text-green-400' : 'text-red-400'}`}>
-                        {deltaVal(m.arm_cm, first.arm_cm)}
-                      </td>
-                    </>
-                  ) : (
-                    <><td className="px-4 py-2">—</td><td className="px-4 py-2">—</td><td className="px-4 py-2">—</td></>
-                  )}
+        {/* Entry form */}
+        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', padding: 24 }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: 16 }}>Log Measurements</h2>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 6 }}>Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="glass-input"
+              style={{ width: 'auto' }}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'Waist (cm)', value: waist, set: setWaist },
+              { label: 'Chest (cm)', value: chest, set: setChest },
+              { label: 'Arm (cm)', value: arm, set: setArm },
+            ].map(({ label, value, set }) => (
+              <div key={label}>
+                <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.40)', marginBottom: 6 }}>{label}</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={value}
+                  onChange={(e) => set(e.target.value)}
+                  className="glass-input"
+                />
+              </div>
+            ))}
+          </div>
+          <motion.button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            whileHover={{ scale: canSave ? 1.01 : 1 }}
+            whileTap={{ scale: canSave ? 0.98 : 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            style={{
+              width: '100%',
+              background: 'linear-gradient(135deg, #7c3aed, #f5a623)',
+              border: 'none',
+              borderRadius: 16,
+              color: 'white',
+              fontWeight: 700,
+              fontSize: 15,
+              padding: '14px 0',
+              cursor: !canSave || saving ? 'not-allowed' : 'pointer',
+              opacity: !canSave || saving ? 0.4 : 1,
+              fontFamily: 'inherit',
+            }}
+          >
+            {saving ? 'Saving…' : 'Save Measurements'}
+          </motion.button>
+        </div>
+
+        {/* History table */}
+        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 24, backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', overflow: 'hidden' }}>
+          <h2 style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '2px', padding: '16px 20px', margin: 0, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            Measurement History
+          </h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Date', 'Waist', 'Chest', 'Arm', 'Δ Waist', 'Δ Chest', 'Δ Arm'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 10, color: 'rgba(255,255,255,0.40)', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {history.length === 0 && (
-            <p className="text-gray-500 text-center py-8">No measurements yet</p>
-          )}
+              </thead>
+              <tbody>
+                {[...history].reverse().map((m) => (
+                  <tr
+                    key={m.measured_at}
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                  >
+                    <td style={{ padding: '10px 16px', whiteSpace: 'nowrap', color: '#fff' }}>{formatDate(m.measured_at)}</td>
+                    <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.waist_cm}</td>
+                    <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.chest_cm}</td>
+                    <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.arm_cm}</td>
+                    {first ? (
+                      <>
+                        <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: m.waist_cm <= first.waist_cm ? 'rgba(74,222,128,1)' : 'rgba(239,68,68,1)' }}>
+                          {deltaVal(m.waist_cm, first.waist_cm)}
+                        </td>
+                        <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: m.chest_cm <= first.chest_cm ? 'rgba(74,222,128,1)' : 'rgba(239,68,68,1)' }}>
+                          {deltaVal(m.chest_cm, first.chest_cm)}
+                        </td>
+                        <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: m.arm_cm >= first.arm_cm ? 'rgba(74,222,128,1)' : 'rgba(239,68,68,1)' }}>
+                          {deltaVal(m.arm_cm, first.arm_cm)}
+                        </td>
+                      </>
+                    ) : (
+                      <><td style={{ padding: '10px 16px', color: 'rgba(255,255,255,0.25)' }}>—</td><td style={{ padding: '10px 16px', color: 'rgba(255,255,255,0.25)' }}>—</td><td style={{ padding: '10px 16px', color: 'rgba(255,255,255,0.25)' }}>—</td></>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {history.length === 0 && (
+              <p style={{ textAlign: 'center', padding: '32px 0', color: 'rgba(255,255,255,0.25)' }}>No measurements yet</p>
+            )}
+          </div>
         </div>
+
       </div>
 
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
-      )}
+      <AnimatePresence>
+        {toast && (
+          <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
