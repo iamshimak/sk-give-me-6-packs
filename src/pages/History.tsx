@@ -63,7 +63,7 @@ export default function History() {
         </h1>
 
         {/* Summary bar — 6 mini glass tiles */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }} className="lg:grid-cols-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {[
             { label: 'Days Logged', value: String(logs.length) },
             { label: 'Meal Compliance', value: compliance !== null ? `${compliance}%` : '—' },

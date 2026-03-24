@@ -20,9 +20,11 @@ export default function Measurements() {
       .from('measurements')
       .select('*')
       .order('measured_at')
-    if (!error) {
-      setHistory((data ?? []) as Measurement[])
+    if (error) {
+      setToast({ message: 'Failed to load measurements', type: 'error' })
+      return
     }
+    setHistory((data ?? []) as Measurement[])
   }, [])
 
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -160,7 +162,7 @@ export default function Measurements() {
                     <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.waist_cm}</td>
                     <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.chest_cm}</td>
                     <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: '#fff' }}>{m.arm_cm}</td>
-                    {first ? (
+                    {first && m.measured_at !== first.measured_at ? (
                       <>
                         <td style={{ padding: '10px 16px', fontFamily: "'Space Mono', monospace", color: m.waist_cm <= first.waist_cm ? 'rgba(74,222,128,1)' : 'rgba(239,68,68,1)' }}>
                           {deltaVal(m.waist_cm, first.waist_cm)}
